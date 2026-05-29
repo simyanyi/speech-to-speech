@@ -1,4 +1,4 @@
-FROM pytorch/pytorch:2.4.0-cuda12.1-cudnn9-devel
+FROM nvcr.io/nvidia/pytorch:25.03-py3
 
 ENV PYTHONUNBUFFERED 1
 ENV PATH="/usr/src/app/.venv/bin:${PATH}"
@@ -14,3 +14,5 @@ RUN uv sync --no-install-project --no-dev
 
 COPY . .
 RUN uv sync --no-dev
+
+ENTRYPOINT []

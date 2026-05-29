@@ -358,11 +358,12 @@ Leverage Torch Compile for Whisper with Pocket TTS for a simple low-latency setu
 
 ```bash
 speech-to-speech \
+    --mode realtime \
     --stt parakeet-tdt \
     --llm_backend transformers \
     --tts qwen3 \
     --model_name "Qwen/Qwen3-4B-Instruct-2507" \
-    --enable_live_transcription
+    --enable_live_transcription 
 ```
 
 ### Multi-language Support
