@@ -1,4 +1,5 @@
 import logging
+import time
 from collections.abc import Mapping
 from queue import Queue
 from threading import Event as ThreadingEvent
@@ -157,6 +158,9 @@ class ConnState(BaseModel):
     last_item_id: Optional[str] = None
     current_response_params: RealtimeResponseCreateParams | None = None
     response_usage: UsageMetrics = Field(default_factory=UsageMetrics)
+    # Track last final transcription to avoid duplicate triggers
+    last_transcription: str | None = None
+    last_transcription_time: float = 0.0
 
 
 class RealtimeService:
@@ -298,8 +302,19 @@ class RealtimeService:
         st = self._state(conn_id)
         cfg = st.runtime_config
         transcript = event.transcript
+        # Deduplicate repeated final transcripts (e.g., VAD/STT overlap) within short window
+        now = time.time()
         if transcript:
+            # If identical to last transcription and very recent, ignore it
+            if st.last_transcription is not None and transcript == st.last_transcription and (
+                now - st.last_transcription_time
+            ) < 1.0:
+                logger.debug("Ignoring duplicate transcription for conn %s: %s", conn_id, transcript[:80])
+                return events
+
             cfg.chat.add_item(make_user_message(transcript))
+            st.last_transcription = transcript
+            st.last_transcription_time = now
 
         queue = self.text_prompt_queue
         if queue and transcript:

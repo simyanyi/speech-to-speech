@@ -170,12 +170,30 @@ class Qwen3TTSHandler(BaseHandler[TTSIn, TTSOut]):
                 "Install with: pip install faster-qwen3-tts"
             ) from e
 
-        self.model = FasterQwen3TTS.from_pretrained(
-            model_name,
-            device=self.device,
-            dtype=self.dtype,
-            attn_implementation=attn_implementation,
-        )
+        try:
+            self.model = FasterQwen3TTS.from_pretrained(
+                model_name,
+                device=self.device,
+                dtype=self.dtype,
+                attn_implementation=attn_implementation,
+            )
+        except TypeError as e:
+            # This commonly happens when the `qwen_tts` package exposes a
+            # decorator that is called incorrectly (e.g. `@check_model_inputs()`
+            # used instead of `@check_model_inputs`). Surface a clearer message
+            # so the user can pin or adjust dependencies.
+            raise ImportError(
+                "Failed to initialize faster-qwen3-tts due to an incompatible "
+                "qwen_tts dependency (TypeError from decorator).\n"
+                "Workarounds:\n"
+                "  * Pin a known-working dependency in pyproject.toml, e.g. add:\n"
+                "      qwen-tts==0.2.6\n"
+                "  * Or downgrade/upgrade `faster-qwen3-tts` to a version compatible "
+                "with the installed `qwen_tts`.\n"
+                "  * As a temporary workaround, run the service without Qwen3 TTS.\n"
+                "Include the original error for debugging: "
+                f"{e!r}",
+            ) from e
         logger.info("Qwen3-TTS model loaded")
 
     def _setup_mlx(self, model_name: str) -> None:
