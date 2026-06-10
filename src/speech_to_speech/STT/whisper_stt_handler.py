@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 from copy import copy
 from typing import Any, Iterator, Optional
+import hashlib
+import time
 
 import numpy as np
 import torch
@@ -113,6 +115,12 @@ class WhisperSTTHandler(BaseHandler[STTIn, STTOut]):
             )
 
     def process(self, vad_audio: STTIn) -> Iterator[STTOut]:
+        audio_hash = hashlib.md5(vad_audio.audio.tobytes()).hexdigest()
+        if audio_hash == getattr(self, "_last_audio_hash", None):
+            logger.debug("Duplicate audio chunk detected, skipping")
+            return
+        self._last_audio_hash = audio_hash
+
         logger.debug("infering whisper...")
 
         input_features = self.prepare_model_inputs(vad_audio.audio)
@@ -129,9 +137,16 @@ class WhisperSTTHandler(BaseHandler[STTIn, STTOut]):
             self.last_language = language_code
 
         pred_text = self.processor.batch_decode(pred_ids, skip_special_tokens=True, decode_with_timestamps=False)[0]
-        language_code = self.processor.tokenizer.decode(pred_ids[0, 1])[2:-2]  # remove "<|" and "|>"
+        language_code = self.processor.tokenizer.decode(pred_ids[0, 1])[2:-2]
 
         logger.debug("finished whisper inference")
+
+        # Deduplicate repeated transcriptions
+        if pred_text == getattr(self, "_last_pred_text", None):
+            logger.debug("Duplicate transcription suppressed: %s", pred_text)
+            return
+        self._last_pred_text = pred_text
+
         console.print(f"[yellow]USER: {pred_text}")
         logger.debug(f"Language Code Whisper: {language_code}")
 

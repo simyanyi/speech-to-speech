@@ -9,6 +9,7 @@ services:
         - ./cache/:/root/.cache/
       environment:
         - HF_HOME=/root/.cache/huggingface
+        - HF_TOKEN=${HF_TOKEN}
       deploy:
         resources:
           reservations:
@@ -16,12 +17,27 @@ services:
               - driver: nvidia
                 count: all
                 capabilities: [gpu]
-      command: >
-        vllm serve Qwen/Qwen3-30B-A3B-Instruct-2507
-        --port 8001
-        --quantization fp8
-        --gpu-memory-utilization 0.5
+      command:
+      - --model
+      - Qwen/Qwen3-30B-A3B-Instruct-2507
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8001"
+      - --quantization
+      - fp8
+      - --gpu-memory-utilization
+      - "0.5"
+      healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:8001/v1/models"]
+        interval: 10s
+        timeout: 5s
+        retries: 30
+        start_period: 120s
   speech-to-speech:
+    depends_on:
+      vllm:
+        condition: service_healthy
     container_name: speech-to-speech
     build:
       context: .
@@ -30,8 +46,16 @@ services:
         - speech-to-speech
         - --mode
         - realtime
+        - --thresh
+        - "0.8"
+        - --min_speech_ms
+        - "500"
+        - --min_silence_ms
+        - "1000"
         - --stt
-        - parakeet-tdt
+        - faster-whisper
+        - --stt_model_name
+        - large-v3
         - --language
         - auto
         - --llm_backend
@@ -39,7 +63,7 @@ services:
         - --model_name
         - Qwen/Qwen3-30B-A3B-Instruct-2507
         - --responses_api_base_url
-        - http://localhost:8001/v1
+        - http://vllm:8001/v1
         - --responses_api_api_key
         - dummy
         - --responses_api_stream
@@ -50,11 +74,6 @@ services:
         - azelma
         - --pocket_tts_device
         - cpu
-      # - --tts
-      # - qwen3
-      # - --qwen3_tts_model_name
-      # - Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice
-      # - --enable_live_transcription
     ports:
       - "8765:8765"
     volumes:

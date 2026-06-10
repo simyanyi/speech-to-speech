@@ -35,7 +35,7 @@ class FasterWhisperSTTHandler(BaseHandler[STTIn, STTOut]):
 
     def process(self, vad_audio: STTIn) -> Iterator[STTOut]:
         logger.debug("infering faster whisper...")
-
+        logger.debug(f"audio chunk size: {len(vad_audio.audio)}")
         segments, info = self.model.transcribe(vad_audio.audio, **self.gen_kwargs)
         output_text = []
 
@@ -44,9 +44,9 @@ class FasterWhisperSTTHandler(BaseHandler[STTIn, STTOut]):
             output_text.append(segment.text)
 
         pred_text = " ".join(output_text).strip()
-
+    
         logger.debug("finished whisper inference")
-        if pred_text:
+        if pred_text and pred_text != getattr(self, "_last_text", None):
             console.print(f"[yellow]USER: {pred_text}")
 
             yield Transcription(text=pred_text)
@@ -58,6 +58,13 @@ class FasterWhisperSTTHandler(BaseHandler[STTIn, STTOut]):
         del self.model
 
     def adapt_gen_kwargs(self, gen_kwargs: dict[str, Any]) -> dict[str, Any]:
-        gen_kwargs["without_timestamps"] = not gen_kwargs.pop("return_timestamps", True)
-
-        return gen_kwargs
+        defaults = {
+            "condition_on_previous_text": False,
+            "no_speech_threshold": 0.7,
+            "log_prob_threshold": -0.8,
+            "repetition_penalty": 1.2,
+        }
+        # Allow caller to override defaults
+        merged = {**defaults, **gen_kwargs}
+        merged["without_timestamps"] = not merged.pop("return_timestamps", True)
+        return merged

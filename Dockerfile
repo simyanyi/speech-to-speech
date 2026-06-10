@@ -10,9 +10,9 @@ RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir uv
 
 COPY pyproject.toml ./
-RUN uv sync --no-install-project --no-dev --extra faster-whisper
+RUN uv sync --no-install-project --no-dev --extra faster-whisper --extra pocket
 
 COPY . .
-RUN uv sync --no-dev
+RUN uv sync --no-dev --extra faster-whisper --extra pocket
 
 ENTRYPOINT []

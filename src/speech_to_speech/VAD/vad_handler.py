@@ -53,6 +53,7 @@ class VADHandler(BaseHandler[VADIn, VADOut]):
         realtime_processing_pause: float = 0.25,
         text_output_queue: Queue[TextEventItem] | None = None,
     ) -> None:
+        logger.info(f"VAD config: thresh={thresh}, min_speech_ms={min_speech_ms}, min_silence_ms={min_silence_ms}, speech_pad_ms={speech_pad_ms}")  # add this
         self.should_listen = should_listen
         self.sample_rate = sample_rate
         self.min_silence_ms = min_silence_ms
